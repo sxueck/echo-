@@ -196,3 +196,92 @@ func (e *Echo) Start(address string) error {
 ```
 
 Demo 的最后一行就是整个框架的启动语句了，在我们配置好了路由之后，它的启动依赖了 `http.Server{}.Serve()` 这个函数，剩下在互斥锁中的语句其实就是启动 Web 框架之前的行为了，例如显示 Logo、隐藏监听端口这些
+
+## 模仿
+
+在了解完基本概念后，我们可以模仿着实现一个 Web 框架，就叫 `beegin` 好了
+
+```go
+package beegin
+
+import (
+	"fmt"
+	"log"
+	"net/http"
+)
+
+type (
+	HandlerFunc func(http.ResponseWriter, *http.Request)
+	routerMap   map[string]HandlerFunc
+
+	Engine struct {
+		router                  routerMap
+		DefaultErrorHandlerFunc HandlerFunc
+	}
+)
+
+func New() *Engine {
+	return &Engine{
+		router:                  make(routerMap),
+		DefaultErrorHandlerFunc: defaultErrorHandlerFunc,
+	}
+}
+
+func defaultErrorHandlerFunc(w http.ResponseWriter, r *http.Request) {
+	_, err := fmt.Fprintln(w, "404 Not Found")
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (e *Engine) addRoute(method string, pattern string, h HandlerFunc) {
+	key := fmt.Sprintf("%s-%s", method, pattern)
+	log.Printf("Route %4s - %s", method, pattern)
+	e.router[key] = h
+}
+
+func (e *Engine) GET(pattern string, h HandlerFunc) {
+	e.addRoute(http.MethodGet, pattern, h)
+}
+
+func (e *Engine) POST(pattern string, h HandlerFunc) {
+	e.addRoute(http.MethodPost, pattern, h)
+}
+
+func (e *Engine) Run(addr string) error {
+	return http.ListenAndServe(addr, e)
+}
+
+func (e *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	key := fmt.Sprintf("%s-%s", req.Method, req.URL.Path)
+	if handler, ok := e.router[key]; ok {
+		handler(w, req)
+	} else {
+		e.DefaultErrorHandlerFunc(w, req)
+	}
+}
+```
+
+其实核心的思路就是模拟一个 `http.Handler` 的实现
+
+***main.go***
+
+```go
+package main
+
+import (
+	"beegin"
+	"fmt"
+	"log"
+	"net/http"
+)
+
+func main() {
+	r := beegin.New()
+	r.GET("/hello", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w,"hello World")
+	})
+
+	log.Fatal(r.Run(":80"))
+}
+```
