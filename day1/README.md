@@ -66,7 +66,7 @@ func New() (e *Echo) {
 
 ### Server
 
-Echo 其实是基于 Go Http 标准库上层开发的一个框架，因此 Server 直接 New 了一个  http.Server，我们直接查看 http.Server 的底层代码可能理解更方便些
+Echo 其实是基于 Go Http 标准库上层开发的一个框架，因此 Server 直接 New 了一个  http.Server，我们直接查看 http.Server 的底层代码可能理解更方便些, 而从源码中能发现，Handler 是一个接口，只要实现了 ServeHTTP 方法，所有 HTTP 请求都将会被交给这个实例处理
 
 ```go
 // A Server defines parameters for running an HTTP server.
